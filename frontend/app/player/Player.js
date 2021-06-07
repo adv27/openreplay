@@ -21,9 +21,12 @@ const HIGHEST_SPEED = 3;
 
 const SPEED_STORAGE_KEY = "__$player-speed$__";
 const SKIP_STORAGE_KEY = "__$player-skip$__";
+const AUTOPLAY_STORAGE_KEY = "__$player-autoplay$__";
 const storedSpeed = +localStorage.getItem(SPEED_STORAGE_KEY);
 const initialSpeed = [1,2,3].includes(storedSpeed) ? storedSpeed : 1;
 const initialSkip = !!localStorage.getItem(SKIP_STORAGE_KEY);
+const initialAutoplay = true;
+
 
 export const INITIAL_STATE = {
   ...SUPER_INITIAL_STATE,
@@ -37,6 +40,7 @@ export const INITIAL_STATE = {
 
 export const INITIAL_NON_RESETABLE_STATE = {
   skip: initialSkip,
+  autoplay: initialAutoplay,
   speed: initialSpeed,
 }
 
@@ -59,7 +63,8 @@ export default class Player extends MessageDistributor {
     const nextFrame = (animationCurrentTime) => {
       const { 
         speed, 
-        skip, 
+        skip,
+        autoplay, 
         skipIntervals, 
         endTime, 
         live, 
@@ -155,7 +160,12 @@ export default class Player extends MessageDistributor {
     const skip = !getState().skip;
     localStorage.setItem(SKIP_STORAGE_KEY, skip);
     update({ skip });
+  }
 
+  toggleAutoplay() {
+    const autoplay = !getState().autoplay;
+    localStorage.setItem(AUTOPLAY_STORAGE_KEY, autoplay);
+    update({ autoplay });
   }
 
   _updateSpeed(speed) {
