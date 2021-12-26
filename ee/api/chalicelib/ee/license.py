@@ -12,12 +12,14 @@ def get_status(tenant_id):
         "current": {
             "edition": r.get("edition", "").upper(),
             "versionNumber": r.get("version_number", ""),
-            "license": r.get("license", "")[0:2] + "*" * (len(r.get("license", "")) - 4) + r.get("license", "")[-2:],
-            "expirationDate": unlock.get_expiration_date()
+            "license": r.get("license", "")[:2]
+            + "*" * (len(r.get("license", "")) - 4)
+            + r.get("license", "")[-2:],
+            "expirationDate": unlock.get_expiration_date(),
         },
         "count": {
             "teamMember": r.get("t_users"),
             "projects": r.get("t_projects"),
-            "capturedSessions": r.get("t_sessions")
-        }
+            "capturedSessions": r.get("t_sessions"),
+        },
     }

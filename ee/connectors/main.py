@@ -55,9 +55,8 @@ def main():
             sessions[session_id].sessionid = session_id
 
         # put in a batch for insertion if received a SessionEnd
-        if isinstance(message, SessionEnd):
-            if sessions[session_id]:
-                sessions_batch.append(sessions[session_id])
+        if isinstance(message, SessionEnd) and sessions[session_id]:
+            sessions_batch.append(sessions[session_id])
 
         # try to insert sessions
         if len(sessions_batch) >= sessions_batch_size:
@@ -69,14 +68,13 @@ def main():
                     print(repr(e))
             sessions_batch = []
 
-        if n:
-            n.sessionid = session_id
-            n.received_at = int(datetime.now().timestamp() * 1000)
-            n.batch_order_number = len(batch)
-            batch.append(n)
-        else:
+        if not n:
             continue
 
+        n.sessionid = session_id
+        n.received_at = int(datetime.now().timestamp() * 1000)
+        n.batch_order_number = len(batch)
+        batch.append(n)
         # insert a batch of events
         if len(batch) >= batch_size:
             attempt_batch_insert(batch)
@@ -86,19 +84,20 @@ def main():
 
 
 def attempt_session_insert(sess_batch):
-    if sess_batch:
-        try:
-            print("inserting sessions...")
-            insert_batch(db, sess_batch, table=sessions_table_name, level='sessions')
-            print("inserted sessions succesfully")
-        except TypeError as e:
-            print("Type conversion error")
-            print(repr(e))
-        except ValueError as e:
-            print("Message value could not be processed or inserted correctly")
-            print(repr(e))
-        except Exception as e:
-            print(repr(e))
+    if not sess_batch:
+        return
+    try:
+        print("inserting sessions...")
+        insert_batch(db, sess_batch, table=sessions_table_name, level='sessions')
+        print("inserted sessions succesfully")
+    except TypeError as e:
+        print("Type conversion error")
+        print(repr(e))
+    except ValueError as e:
+        print("Message value could not be processed or inserted correctly")
+        print(repr(e))
+    except Exception as e:
+        print(repr(e))
 
 
 def attempt_batch_insert(batch):

@@ -56,22 +56,22 @@ def get_stages_and_events(filter_d, project_id) -> List[RealDictRow]:
             values[f"f_value_{i}"] = sessions.__get_sql_value_multiple(f["value"])
             if filter_type == sessions_metas.meta_type.USERBROWSER:
                 op = sessions.__get_sql_operator_multiple(f["operator"])
-                first_stage_extra_constraints.append(f's.user_browser {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.user_browser {op} %(f_value_{i})s')
 
             elif filter_type in [sessions_metas.meta_type.USEROS, sessions_metas.meta_type.USEROS_IOS]:
                 op = sessions.__get_sql_operator_multiple(f["operator"])
-                first_stage_extra_constraints.append(f's.user_os {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.user_os {op} %(f_value_{i})s')
 
             elif filter_type in [sessions_metas.meta_type.USERDEVICE, sessions_metas.meta_type.USERDEVICE_IOS]:
                 op = sessions.__get_sql_operator_multiple(f["operator"])
-                first_stage_extra_constraints.append(f's.user_device {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.user_device {op} %(f_value_{i})s')
 
             elif filter_type in [sessions_metas.meta_type.USERCOUNTRY, sessions_metas.meta_type.USERCOUNTRY_IOS]:
                 op = sessions.__get_sql_operator_multiple(f["operator"])
-                first_stage_extra_constraints.append(f's.user_country {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.user_country {op} %(f_value_{i})s')
             elif filter_type == "duration".upper():
                 if len(f["value"]) > 0 and f["value"][0] is not None:
-                    first_stage_extra_constraints.append(f's.duration >= %({f"f_value_{i}"})s')
+                    first_stage_extra_constraints.append(f's.duration >= %(f_value_{i})s')
                     values[f"f_value_{i}"] = f["value"][0]
                 if len(f["value"]) > 1 and f["value"][1] is not None and f["value"][1] > 0:
                     first_stage_extra_constraints.append('s.duration <= %({f"f_value_{i}"})s')
@@ -83,22 +83,27 @@ def get_stages_and_events(filter_d, project_id) -> List[RealDictRow]:
                 first_stage_extra_constraints.append(f"p.base_referrer {op} %(referrer)s")
             elif filter_type == events.event_type.METADATA.ui_type:
                 op = sessions.__get_sql_operator(f["operator"])
-                if f.get("key") in meta_keys.keys():
+                if f.get("key") in meta_keys:
                     first_stage_extra_constraints.append(
-                        f's.{metadata.index_to_colname(meta_keys[f["key"]])} {op} %({f"f_value_{i}"})s')
+                        f's.{metadata.index_to_colname(meta_keys[f["key"]])} {op} %(f_value_{i})s'
+                    )
+
                     values[f"f_value_{i}"] = helper.string_to_sql_like_with_op(f["value"][0], op)
             elif filter_type in [sessions_metas.meta_type.USERID, sessions_metas.meta_type.USERID_IOS]:
                 op = sessions.__get_sql_operator(f["operator"])
-                first_stage_extra_constraints.append(f's.user_id {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.user_id {op} %(f_value_{i})s')
                 values[f"f_value_{i}"] = helper.string_to_sql_like_with_op(f["value"][0], op)
             elif filter_type in [sessions_metas.meta_type.USERANONYMOUSID,
                                  sessions_metas.meta_type.USERANONYMOUSID_IOS]:
                 op = sessions.__get_sql_operator(f["operator"])
-                first_stage_extra_constraints.append(f's.user_anonymous_id {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(
+                    f's.user_anonymous_id {op} %(f_value_{i})s'
+                )
+
                 values[f"f_value_{i}"] = helper.string_to_sql_like_with_op(f["value"][0], op)
             elif filter_type in [sessions_metas.meta_type.REVID, sessions_metas.meta_type.REVID_IOS]:
                 op = sessions.__get_sql_operator(f["operator"])
-                first_stage_extra_constraints.append(f's.rev_id {op} %({f"f_value_{i}"})s')
+                first_stage_extra_constraints.append(f's.rev_id {op} %(f_value_{i})s')
                 values[f"f_value_{i}"] = helper.string_to_sql_like_with_op(f["value"][0], op)
 
     for i, s in enumerate(stages):
@@ -151,21 +156,11 @@ def get_stages_and_events(filter_d, project_id) -> List[RealDictRow]:
                                                         AND s_main.session_id = T1.session_id) AS left_not ON (TRUE)""")
         else:
             main_condition = f"""main.{next_col_name} {op} %(value{i + 1})s"""
-        n_stages_query.append(f""" 
-        (SELECT main.session_id, 
-                {"MIN(main.timestamp)" if i + 1 < len(stages) else "MAX(main.timestamp)"} AS stage{i + 1}_timestamp, 
-                '{event_type}' AS type,
-                '{s["operator"]}' AS operator
-        FROM {next_table} AS main {" ".join(extra_from)}        
-        WHERE main.timestamp >= {f"T{i}.stage{i}_timestamp" if i > 0 else "%(startTimestamp)s"}
-            {f"AND main.session_id=T1.session_id" if i > 0 else ""}
-            AND {main_condition}
-            {(" AND " + " AND ".join(stage_constraints)) if len(stage_constraints) > 0 else ""}
-            {(" AND " + " AND ".join(first_stage_extra_constraints)) if len(first_stage_extra_constraints) > 0 and i == 0 else ""}
-        GROUP BY main.session_id)
-        AS T{i + 1} {"USING (session_id)" if i > 0 else ""}
-        """)
-    if len(n_stages_query) == 0:
+        n_stages_query.append(
+            f""" \x1f        (SELECT main.session_id, \x1f                {"MIN(main.timestamp)" if i + 1 < len(stages) else "MAX(main.timestamp)"} AS stage{i + 1}_timestamp, \x1f                '{event_type}' AS type,\x1f                '{s["operator"]}' AS operator\x1f        FROM {next_table} AS main {" ".join(extra_from)}        \x1f        WHERE main.timestamp >= {f"T{i}.stage{i}_timestamp" if i > 0 else "%(startTimestamp)s"}\x1f            {"AND main.session_id=T1.session_id" if i > 0 else ""}\x1f            AND {main_condition}\x1f            {" AND " + " AND ".join(stage_constraints) if stage_constraints else ""}\x1f            {" AND " + " AND ".join(first_stage_extra_constraints) if first_stage_extra_constraints and i == 0 else ""}\x1f        GROUP BY main.session_id)\x1f        AS T{i + 1} {"USING (session_id)" if i > 0 else ""}\x1f        """
+        )
+
+    if not n_stages_query:
         return []
     n_stages_query = " LEFT JOIN LATERAL ".join(n_stages_query)
     n_stages_query += ") AS stages_t"
@@ -228,8 +223,8 @@ def pearson_corr(x: list, y: list):
     xm = [el - xmean for el in x]
     ym = [el - ymean for el in y]
 
-    normxm = math.sqrt((sum([xm[i] * xm[i] for i in range(len(xm))])))
-    normym = math.sqrt((sum([ym[i] * ym[i] for i in range(len(ym))])))
+    normxm = math.sqrt(sum(xm[i] * xm[i] for i in range(len(xm))))
+    normym = math.sqrt(sum(ym[i] * ym[i] for i in range(len(ym))))
 
     threshold = 1e-8
     if normxm < threshold * abs(xmean) or normym < threshold * abs(ymean):
@@ -252,11 +247,7 @@ def pearson_corr(x: list, y: list):
         t_c = 2.02
     else:
         t_c = 2
-    if r >= 0.999:
-        confidence = 1
-    else:
-        confidence = r * math.sqrt(n - 2) / math.sqrt(1 - r ** 2)
-
+    confidence = 1 if r >= 0.999 else r * math.sqrt(n - 2) / math.sqrt(1 - r ** 2)
     if confidence > SIGNIFICANCE_THRSH:
         return r, confidence, True
     else:
@@ -372,13 +363,13 @@ def get_affected_users_for_all_issues(rows, first_stage, last_stage):
                 affected_users[issue_with_context].add(row['user_uuid'])
 
             affected_sessions[issue_with_context].add(row['session_id'])
-            issues_by_session[row[f'session_id']] += 1
+            issues_by_session[row['session_id']] += 1
 
-    if len(affected_users) > 0:
+    if affected_users:
         n_affected_users_dict.update({
             iss: len(affected_users[iss]) for iss in affected_users
         })
-    if len(affected_sessions) > 0:
+    if affected_sessions:
         n_affected_sessions_dict.update({
             iss: len(affected_sessions[iss]) for iss in affected_sessions
         })
@@ -388,10 +379,10 @@ def get_affected_users_for_all_issues(rows, first_stage, last_stage):
 @dev.timed
 def count_sessions(rows, n_stages):
     session_counts = {i: set() for i in range(1, n_stages + 1)}
-    for ind, row in enumerate(rows):
+    for row in rows:
         for i in range(1, n_stages + 1):
             if row[f"stage{i}_timestamp"] is not None:
-                session_counts[i].add(row[f"session_id"])
+                session_counts[i].add(row['session_id'])
     session_counts = {i: len(session_counts[i]) for i in session_counts}
     return session_counts
 
@@ -399,14 +390,12 @@ def count_sessions(rows, n_stages):
 def count_users(rows, n_stages):
     users_in_stages = defaultdict(lambda: set())
 
-    for ind, row in enumerate(rows):
+    for row in rows:
         for i in range(1, n_stages + 1):
             if row[f"stage{i}_timestamp"] is not None:
                 users_in_stages[i].add(row["user_uuid"])
 
-    users_count = {i: len(users_in_stages[i]) for i in range(1, n_stages + 1)}
-
-    return users_count
+    return {i: len(users_in_stages[i]) for i in range(1, n_stages + 1)}
 
 
 def get_stages(stages, rows):
@@ -571,7 +560,7 @@ def get_issues_list(filter_d, project_id, first_stage=None, last_stage=None):
 
 
 def get_overview(filter_d, project_id, first_stage=None, last_stage=None):
-    output = dict()
+    output = {}
     stages = filter_d["events"]
     # TODO: handle 1 stage alone
     if len(stages) == 0:

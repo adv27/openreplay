@@ -36,8 +36,7 @@ class GitHubIntegration(integration_base.BaseIntegration):
                             {"user_id": self._user_id,
                              **changes})
             )
-            w = helper.dict_to_camel_case(cur.fetchone())
-            return w
+            return helper.dict_to_camel_case(cur.fetchone())
 
     def _add(self, data):
         pass
@@ -52,8 +51,7 @@ class GitHubIntegration(integration_base.BaseIntegration):
                             {"user_id": self._user_id,
                              "token": token})
             )
-            w = helper.dict_to_camel_case(cur.fetchone())
-            return w
+            return helper.dict_to_camel_case(cur.fetchone())
 
     # TODO: make a revoke token call
     def delete(self):

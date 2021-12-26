@@ -5,16 +5,16 @@ from db.api import DBConnection
 from db.utils import get_df_from_batch
 from db.tables import *
 
-if DATABASE == 'redshift':
-    from db.loaders.redshift_loader import transit_insert_to_redshift
-if DATABASE == 'clickhouse':
-    from db.loaders.clickhouse_loader import insert_to_clickhouse
-if DATABASE == 'pg':
-    from db.loaders.postgres_loader import insert_to_postgres
 if DATABASE == 'bigquery':
     from db.loaders.bigquery_loader import insert_to_bigquery
     from bigquery_utils.create_table import create_tables_bigquery
-if DATABASE == 'snowflake':
+elif DATABASE == 'clickhouse':
+    from db.loaders.clickhouse_loader import insert_to_clickhouse
+elif DATABASE == 'pg':
+    from db.loaders.postgres_loader import insert_to_postgres
+elif DATABASE == 'redshift':
+    from db.loaders.redshift_loader import transit_insert_to_redshift
+elif DATABASE == 'snowflake':
     from db.loaders.snowflake_loader import insert_to_snowflake
 
 

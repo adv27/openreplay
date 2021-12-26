@@ -15,12 +15,11 @@ class SMTPClient:
             return
         elif environ["EMAIL_USE_SSL"].lower() == "false":
             self.server = smtplib.SMTP(host=environ["EMAIL_HOST"], port=int(environ["EMAIL_PORT"]))
+        elif len(environ["EMAIL_SSL_KEY"]) == 0 or len(environ["EMAIL_SSL_CERT"]) == 0:
+            self.server = smtplib.SMTP_SSL(host=environ["EMAIL_HOST"], port=int(environ["EMAIL_PORT"]))
         else:
-            if len(environ["EMAIL_SSL_KEY"]) == 0 or len(environ["EMAIL_SSL_CERT"]) == 0:
-                self.server = smtplib.SMTP_SSL(host=environ["EMAIL_HOST"], port=int(environ["EMAIL_PORT"]))
-            else:
-                self.server = smtplib.SMTP_SSL(host=environ["EMAIL_HOST"], port=int(environ["EMAIL_PORT"]),
-                                               keyfile=environ["EMAIL_SSL_KEY"], certfile=environ["EMAIL_SSL_CERT"])
+            self.server = smtplib.SMTP_SSL(host=environ["EMAIL_HOST"], port=int(environ["EMAIL_PORT"]),
+                                           keyfile=environ["EMAIL_SSL_KEY"], certfile=environ["EMAIL_SSL_CERT"])
 
     def __enter__(self):
         if self.server is None:

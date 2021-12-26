@@ -52,8 +52,7 @@ class JIRAIntegration(integration_base.BaseIntegration):
                             {"user_id": self._user_id,
                              **changes})
             )
-            w = helper.dict_to_camel_case(cur.fetchone())
-            return w
+            return helper.dict_to_camel_case(cur.fetchone())
 
     # TODO: make this generic for all issue tracking integrations
     def _add(self, data):
@@ -70,8 +69,7 @@ class JIRAIntegration(integration_base.BaseIntegration):
                             {"user_id": self._user_id, "username": username,
                              "token": token, "url": url})
             )
-            w = helper.dict_to_camel_case(cur.fetchone())
-            return w
+            return helper.dict_to_camel_case(cur.fetchone())
 
     def delete(self):
         with pg_client.PostgresClient() as cur:

@@ -7,18 +7,11 @@ def get_by_tenant_id(tenant_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
-                f"""SELECT 
-                       tenant_id,
-                       name,
-                       api_key,
-                       created_at,
-                        edition,
-                        version_number,
-                        opt_out
-                    FROM public.tenants
-                    LIMIT 1;""",
-                {"tenantId": tenant_id})
+                'SELECT \x1f                       tenant_id,\x1f                       name,\x1f                       api_key,\x1f                       created_at,\x1f                        edition,\x1f                        version_number,\x1f                        opt_out\x1f                    FROM public.tenants\x1f                    LIMIT 1;',
+                {"tenantId": tenant_id},
+            )
         )
+
         return helper.dict_to_camel_case(cur.fetchone())
 
 
@@ -26,15 +19,11 @@ def get_by_api_key(api_key):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
-                f"""SELECT 
-                       1 AS tenant_id,
-                       name,
-                       created_at                       
-                    FROM public.tenants
-                    WHERE api_key = %(api_key)s
-                    LIMIT 1;""",
-                {"api_key": api_key})
+                'SELECT \x1f                       1 AS tenant_id,\x1f                       name,\x1f                       created_at                       \x1f                    FROM public.tenants\x1f                    WHERE api_key = %(api_key)s\x1f                    LIMIT 1;',
+                {"api_key": api_key},
+            )
         )
+
         return helper.dict_to_camel_case(cur.fetchone())
 
 
@@ -42,11 +31,11 @@ def generate_new_api_key(tenant_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(
-                f"""UPDATE public.tenants
-                    SET api_key=generate_api_key(20)
-                    RETURNING api_key;""",
-                {"tenant_id": tenant_id})
+                'UPDATE public.tenants\x1f                    SET api_key=generate_api_key(20)\x1f                    RETURNING api_key;',
+                {"tenant_id": tenant_id},
+            )
         )
+
         return helper.dict_to_camel_case(cur.fetchone())
 
 
@@ -79,5 +68,5 @@ def update(tenant_id, user_id, data):
 
 def get_tenants():
     with pg_client.PostgresClient() as cur:
-        cur.execute(f"SELECT name FROM public.tenants")
+        cur.execute('SELECT name FROM public.tenants')
         return helper.list_to_camel_case(cur.fetchall())

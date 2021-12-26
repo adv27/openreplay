@@ -32,40 +32,41 @@ class github_formatters:
     @staticmethod
     def issue(issue):
         labels = [github_formatters.label(l) for l in issue["labels"]]
-        result = {
+        return {
             'id': str(issue["number"]),
             'creator': str(github_formatters.user(issue["user"])["id"]),
-            'assignees': [str(github_formatters.user(a)["id"]) for a in issue["assignees"]],
+            'assignees': [
+                str(github_formatters.user(a)["id"]) for a in issue["assignees"]
+            ],
             'title': issue["title"],
             'description': issue["body"],
             'status': issue["state"],
             'createdAt': github_formatters.get_timestamp(issue["created_at"]),
             'closed': issue["closed_at"] is not None,
             'commentsCount': issue["comments"],
-            'issueType': [str(l["id"]) for l in labels if l["name"].lower() != "openreplay"],
-            'labels': [l["name"] for l in labels]
+            'issueType': [
+                str(l["id"]) for l in labels if l["name"].lower() != "openreplay"
+            ],
+            'labels': [l["name"] for l in labels],
         }
-        return result
 
     @staticmethod
     def user(user):
         if not user:
             return None
-        result = {
+        return {
             'id': user["id"],
             'name': user["login"],
             'avatarUrls': {'24x24': user["avatar_url"]},
             'email': ""
         }
-        return result
 
     @staticmethod
     def team_to_dict(team):
         if not team:
             return None
 
-        result = {'id': team.id, 'name': team.name, 'members_count': team.members_count}
-        return result
+        return {'id': team.id, 'name': team.name, 'members_count': team.members_count}
 
     @staticmethod
     def repo(repo):

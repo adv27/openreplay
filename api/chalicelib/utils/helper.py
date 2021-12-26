@@ -62,22 +62,19 @@ def list_to_camel_case(items, flatten=False):
 def dict_to_camel_case(variable, delimiter='_', ignore_keys=[]):
     if variable is None:
         return None
-    if isinstance(variable, str):
+    if isinstance(variable, str) or not isinstance(variable, dict):
         return variable
-    elif isinstance(variable, dict):
-        aux = {}
-        for key in variable.keys():
-            if key in ignore_keys:
-                aux[key] = variable[key]
-            elif isinstance(variable[key], dict):
-                aux[key_to_camel_case(key, delimiter)] = dict_to_camel_case(variable[key])
-            elif isinstance(variable[key], list):
-                aux[key_to_camel_case(key, delimiter)] = list_to_camel_case(variable[key])
-            else:
-                aux[key_to_camel_case(key, delimiter)] = variable[key]
-        return aux
-    else:
-        return variable
+    aux = {}
+    for key in variable.keys():
+        if key in ignore_keys:
+            aux[key] = variable[key]
+        elif isinstance(variable[key], dict):
+            aux[key_to_camel_case(key, delimiter)] = dict_to_camel_case(variable[key])
+        elif isinstance(variable[key], list):
+            aux[key_to_camel_case(key, delimiter)] = list_to_camel_case(variable[key])
+        else:
+            aux[key_to_camel_case(key, delimiter)] = variable[key]
+    return aux
 
 
 def dict_to_CAPITAL_keys(variable):
@@ -86,13 +83,13 @@ def dict_to_CAPITAL_keys(variable):
     if isinstance(variable, str):
         return variable.upper()
     elif isinstance(variable, dict):
-        aux = {}
-        for key in variable.keys():
-            if isinstance(variable[key], dict):
-                aux[key.upper()] = dict_to_CAPITAL_keys(variable[key])
-            else:
-                aux[key.upper()] = variable[key]
-        return aux
+        return {
+            key.upper(): dict_to_CAPITAL_keys(variable[key])
+            if isinstance(variable[key], dict)
+            else variable[key]
+            for key in variable.keys()
+        }
+
     else:
         return variable
 
@@ -101,14 +98,15 @@ def variable_to_snake_case(variable, delimiter='_', split_number=False):
     if isinstance(variable, str):
         return key_to_snake_case(variable, delimiter, split_number)
     elif isinstance(variable, dict):
-        aux = {}
-        for key in variable.keys():
-            if isinstance(variable[key], dict):
-                aux[key_to_snake_case(key, delimiter, split_number)] = variable_to_snake_case(variable[key], delimiter,
-                                                                                              split_number)
-            else:
-                aux[key_to_snake_case(key, delimiter, split_number)] = variable[key]
-        return aux
+        return {
+            key_to_snake_case(
+                key, delimiter, split_number
+            ): variable_to_snake_case(variable[key], delimiter, split_number)
+            if isinstance(variable[key], dict)
+            else variable[key]
+            for key in variable.keys()
+        }
+
     else:
         return variable
 
@@ -361,5 +359,4 @@ def get_internal_project_id(project_id64):
     project_id64 = (project_id64 - 0x10000000000000) * 4212451012670231 & 0xfffffffffffff
     if project_id64 > 0xffffffff:
         return None
-    project_id = int(project_id64)
-    return project_id
+    return int(project_id64)

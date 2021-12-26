@@ -4,26 +4,24 @@ from chalicelib.utils import pg_client
 def add_favorite_error(project_id, user_id, error_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify(f"""\
-                INSERT INTO public.user_favorite_errors 
-                    (user_id, error_id) 
-                VALUES 
-                    (%(userId)s,%(error_id)s);""",
-                        {"userId": user_id, "error_id": error_id})
+            cur.mogrify(
+                '\\\x1f                INSERT INTO public.user_favorite_errors \x1f                    (user_id, error_id) \x1f                VALUES \x1f                    (%(userId)s,%(error_id)s);',
+                {"userId": user_id, "error_id": error_id},
+            )
         )
+
     return {"errorId": error_id, "favorite": True}
 
 
 def remove_favorite_error(project_id, user_id, error_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify(f"""\
-                        DELETE FROM public.user_favorite_errors                          
-                        WHERE 
-                            user_id = %(userId)s
-                            AND error_id = %(error_id)s;""",
-                        {"userId": user_id, "error_id": error_id})
+            cur.mogrify(
+                '\\\x1f                        DELETE FROM public.user_favorite_errors                          \x1f                        WHERE \x1f                            user_id = %(userId)s\x1f                            AND error_id = %(error_id)s;',
+                {"userId": user_id, "error_id": error_id},
+            )
         )
+
     return {"errorId": error_id, "favorite": False}
 
 

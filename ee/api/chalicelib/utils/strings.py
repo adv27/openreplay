@@ -11,7 +11,7 @@ def __filter(s, chars, l):
     s = "".join(s)
     if len(s) == 0:
         return None
-    return s[0:l]
+    return s[:l]
 
 
 __keyword_chars = string.ascii_lowercase + string.ascii_uppercase + string.digits + "_"

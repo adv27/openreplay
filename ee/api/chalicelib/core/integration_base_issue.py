@@ -7,7 +7,7 @@ class RequestException(Exception):
 
 def proxy_issues_handler(e):
     print("=======__proxy_issues_handler=======")
-    print(str(e))
+    print(e)
     return {"errors": [str(e)]}
 
 

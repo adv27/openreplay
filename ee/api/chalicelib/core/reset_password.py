@@ -56,7 +56,7 @@ def cron():
         results = cur.fetchall()
         if len(results) == 0:
             return
-        results = tuple([r["user_id"] for r in results])
+        results = tuple(r["user_id"] for r in results)
         cur.execute(
             cur.mogrify("""\
                                 UPDATE public.basic_authentication

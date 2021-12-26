@@ -49,7 +49,7 @@ def update(funnel_id, user_id, name=None, filter=None, is_public=None):
         s_query.append("name = %(name)s")
     if is_public is not None:
         s_query.append("is_public = %(is_public)s")
-    if len(s_query) == 0:
+    if not s_query:
         return {"errors": ["Nothing to update"]}
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""\

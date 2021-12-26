@@ -34,10 +34,7 @@ def __get_grouped_clickrage(rows, session_id):
 
     for c in click_rage_issues:
         merge_count = c.get("payload")
-        if merge_count is not None:
-            merge_count = merge_count.get("count", 3)
-        else:
-            merge_count = 3
+        merge_count = merge_count.get("count", 3) if merge_count is not None else 3
         for i in range(len(rows)):
             if rows[i]["timestamp"] == c["timestamp"]:
                 rows = __merge_cells(rows=rows,
@@ -185,13 +182,13 @@ def __search_pg_errors_ios(project_id, value, key=None, source=None):
 def __search_pg_metadata(project_id, value, key=None, source=None):
     meta_keys = metadata.get(project_id=project_id)
     meta_keys = {m["key"]: m["index"] for m in meta_keys}
-    if len(meta_keys) == 0 or key is not None and key not in meta_keys.keys():
+    if not meta_keys or key is not None and key not in meta_keys.keys():
         return []
     sub_from = []
     if key is not None:
         meta_keys = {key: meta_keys[key]}
 
-    for k in meta_keys.keys():
+    for k in meta_keys:
         colname = metadata.index_to_colname(meta_keys[k])
         sub_from.append(
             f"(SELECT DISTINCT ON ({colname}) {colname} AS value, '{k}' AS key FROM public.sessions WHERE project_id = %(project_id)s AND {colname} ILIKE %(value)s LIMIT 5)")
@@ -381,8 +378,7 @@ def __get_autocomplete_table(value, project_id):
                                     ORDER BY sfa.type;""",
                                 {"project_id": project_id, "value": helper.string_to_sql_like(value),
                                  "svalue": helper.string_to_sql_like("^" + value)}))
-        results = helper.list_to_camel_case(cur.fetchall())
-        return results
+        return helper.list_to_camel_case(cur.fetchall())
 
 
 def search_pg2(text, event_type, project_id, source, key):

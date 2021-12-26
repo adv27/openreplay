@@ -644,8 +644,7 @@ class MessageCodec(Codec):
         """
         Read and return the first byte where the message id is encoded
         """
-        id_ = self.read_uint(reader)
-        return id_
+        return self.read_uint(reader)
 
     @staticmethod
     def check_message_id(b: bytes) -> int:
@@ -654,9 +653,7 @@ class MessageCodec(Codec):
         Read and return the first byte where the message id is encoded
         """
         reader = io.BytesIO(b)
-        id_ = Codec.read_uint(reader)
-
-        return id_
+        return Codec.read_uint(reader)
 
     @staticmethod
     def decode_key(b) -> int:

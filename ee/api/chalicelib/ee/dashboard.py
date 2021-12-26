@@ -50,9 +50,9 @@ def __complete_missing_steps(start_time, end_time, density, neutral, rows, time_
     result = []
     r = 0
     o = 0
-    for i in range(density):
+    for _ in range(density):
         neutral_clone = dict(neutral)
-        for k in neutral_clone.keys():
+        for k in neutral_clone:
             if callable(neutral_clone[k]):
                 neutral_clone[k] = neutral_clone[k]()
         if r < len(rows) and len(result) + len(rows) - r == density:
@@ -73,14 +73,14 @@ def __complete_missing_steps(start_time, end_time, density, neutral, rows, time_
             neutral_clone[time_key] = optimal[o][0]
             result.append(neutral_clone)
             o += 1
-        # elif r < len(rows) and rows[r][time_key] >= optimal[o][1]:
-        #     neutral_clone[time_key] = optimal[o][0]
-        #     result.append(neutral_clone)
-        #     o += 1
-        # else:
-        #     neutral_clone[time_key] = optimal[o][0]
-        #     result.append(neutral_clone)
-        #     o += 1
+            # elif r < len(rows) and rows[r][time_key] >= optimal[o][1]:
+            #     neutral_clone[time_key] = optimal[o][0]
+            #     result.append(neutral_clone)
+            #     o += 1
+            # else:
+            #     neutral_clone[time_key] = optimal[o][0]
+            #     result.append(neutral_clone)
+            #     o += 1
     return result
 
 
@@ -115,9 +115,10 @@ def __get_constraint(data, fields, table_name):
 
 
 def __get_constraint_values(data):
-    params = {}
-    for i, f in enumerate(data.get("filters", [])):
-        params[f"{f['key']}_{i}"] = f["value"]
+    params = {
+        f"{f['key']}_{i}": f["value"]
+        for i, f in enumerate(data.get("filters", []))
+    }
 
     # TODO: remove this in next release
     offset = len(data.get("filters", []))
@@ -181,11 +182,16 @@ def get_processed_sessions(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
         rows = ch.execute(query=ch_query, params=params)
 
         results = {
-            "count": sum([r["count"] for r in rows]),
-            "chart": __complete_missing_steps(rows=rows, start_time=startTimestamp, end_time=endTimestamp,
-                                              density=density,
-                                              neutral={"count": 0})
+            "count": sum(r["count"] for r in rows),
+            "chart": __complete_missing_steps(
+                rows=rows,
+                start_time=startTimestamp,
+                end_time=endTimestamp,
+                density=density,
+                neutral={"count": 0},
+            ),
         }
+
 
         diff = endTimestamp - startTimestamp
         endTimestamp = startTimestamp
@@ -234,13 +240,21 @@ def get_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimesta
                   "endTimestamp": endTimestamp, **__get_constraint_values(args)}
         rows = ch.execute(query=ch_query, params=params)
         results = {
-            "count": 0 if len(rows) == 0 else __count_distinct_errors(ch, project_id, startTimestamp, endTimestamp,
-                                                                      ch_sub_query),
-            "impactedSessions": sum([r["count"] for r in rows]),
-            "chart": __complete_missing_steps(rows=rows, start_time=startTimestamp, end_time=endTimestamp,
-                                              density=density,
-                                              neutral={"count": 0})
+            "count": 0
+            if len(rows) == 0
+            else __count_distinct_errors(
+                ch, project_id, startTimestamp, endTimestamp, ch_sub_query
+            ),
+            "impactedSessions": sum(r["count"] for r in rows),
+            "chart": __complete_missing_steps(
+                rows=rows,
+                start_time=startTimestamp,
+                end_time=endTimestamp,
+                density=density,
+                neutral={"count": 0},
+            ),
         }
+
 
         diff = endTimestamp - startTimestamp
         endTimestamp = startTimestamp
@@ -356,8 +370,7 @@ def __get_page_metrics(ch, project_id, startTimestamp, endTimestamp, **args):
         WHERE {" AND ".join(ch_sub_query)};"""
     params = {"project_id": project_id, "type": 'fetch', "startTimestamp": startTimestamp, "endTimestamp": endTimestamp,
               **__get_constraint_values(args)}
-    rows = ch.execute(query=ch_query, params=params)
-    return rows
+    return ch.execute(query=ch_query, params=params)
 
 
 def get_application_activity(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
@@ -408,8 +421,8 @@ def __get_application_activity(ch, project_id, startTimestamp, endTimestamp, **a
                              "endTimestamp": endTimestamp, **__get_constraint_values(args)})[0]
     result = {**result, "avg_request_load_time": row["avg"]}
 
-    for k in result:
-        if result[k] is None:
+    for k, v in result.items():
+        if v is None:
             result[k] = 0
     return result
 
@@ -451,9 +464,7 @@ def __get_user_activity(cur, project_id, startTimestamp, endTimestamp, **args):
     params = {"project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp,
               **__get_constraint_values(args)}
 
-    rows = cur.execute(query=ch_query, params=params)
-
-    return rows
+    return cur.execute(query=ch_query, params=params)
 
 
 def get_slowest_images(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
@@ -763,13 +774,15 @@ def search(text, resource_type, project_id, performance=False, pages_only=False,
                                                               "platform_0": platform})
         else:
             with ch_client.ClickHouseClient() as ch:
-                ch_query = []
-                for k in METADATA_FIELDS.keys():
-                    ch_query.append(f"""(SELECT DISTINCT sessions_metadata.{METADATA_FIELDS[k]} AS value,
+                ch_query = [
+                    f"""(SELECT DISTINCT sessions_metadata.{METADATA_FIELDS[k]} AS value,
                                           '{k}' AS key
                                       FROM sessions_metadata INNER JOIN sessions USING(session_id)
                                       WHERE {" AND ".join(ch_sub_query)} AND positionCaseInsensitiveUTF8(sessions_metadata.{METADATA_FIELDS[k]},%(value)s)>0 
-                                      LIMIT 10)""")
+                                      LIMIT 10)"""
+                    for k in METADATA_FIELDS.keys()
+                ]
+
                 for k in SESSIONS_META_FIELDS.keys():
                     if k in ["platform", "country"]:
                         continue
@@ -838,7 +851,7 @@ def get_missing_resources_trend(project_id, startTimestamp=TimeUTC.now(delta_day
                                                   "endTimestamp": endTimestamp, **__get_constraint_values(args)})
 
         rows = [{"url": i["key"], "sessions": i["doc_count"]} for i in rows]
-        if len(rows) == 0:
+        if not rows:
             return []
         ch_sub_query.append("resources.url_hostpath = %(value)s")
         ch_query = f"""SELECT 
@@ -930,7 +943,7 @@ def get_resources_loading_time(project_id, startTimestamp=TimeUTC.now(delta_days
     if type is not None:
         ch_sub_query_chart.append(f"resources.type = '{__get_resource_db_type_from_type(type)}'")
     if url is not None:
-        ch_sub_query_chart.append(f"resources.url = %(value)s")
+        ch_sub_query_chart.append('resources.url = %(value)s')
     meta_condition = __get_meta_constraint(args)
     ch_sub_query_chart += meta_condition
 
@@ -962,7 +975,7 @@ def get_pages_dom_build_time(project_id, startTimestamp=TimeUTC.now(delta_days=-
     step_size = __get_step_size(startTimestamp, endTimestamp, density)
     ch_sub_query_chart = __get_basic_constraints(table_name="pages", round_start=True, data=args)
     if url is not None:
-        ch_sub_query_chart.append(f"pages.url_path = %(value)s")
+        ch_sub_query_chart.append('pages.url_path = %(value)s')
     ch_sub_query_chart.append("isNotNull(pages.dom_building_time)")
     ch_sub_query_chart.append("pages.dom_building_time>0")
     meta_condition = __get_meta_constraint(args)
@@ -1116,7 +1129,7 @@ def get_pages_response_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1
     ch_sub_query_chart += meta_condition
 
     if url is not None:
-        ch_sub_query_chart.append(f"url_path = %(value)s")
+        ch_sub_query_chart.append('url_path = %(value)s')
     with ch_client.ClickHouseClient() as ch:
         ch_query = f"""SELECT toUnixTimestamp(toStartOfInterval(pages.datetime, INTERVAL %(step_size)s second)) * 1000 AS timestamp,
                         AVG(pages.response_time)                                        AS avg
@@ -1203,9 +1216,7 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
             rows = rows[:extreme_values_first_index]
 
         # ------- Merge points to reduce chart length till density
-        if density < len(quantiles_keys):
-            density = len(quantiles_keys)
-
+        density = max(density, len(quantiles_keys))
         while len(rows) > density:
             true_length = len(rows)
             rows_partitions = []
@@ -1213,11 +1224,10 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
             for p in result["percentiles"]:
                 rows_partitions.append([])
                 for r in rows[offset:]:
-                    if r["responseTime"] < p["responseTime"]:
-                        rows_partitions[-1].append(r)
-                        offset += 1
-                    else:
+                    if r["responseTime"] >= p["responseTime"]:
                         break
+                    rows_partitions[-1].append(r)
+                    offset += 1
             rows_partitions.append(rows[offset:])
             # print(f"len rows partition: {len(rows_partitions)}")
             # for r in rows_partitions:
@@ -1233,7 +1243,7 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
                 break
             # computing lowest merge diff
             diff = rows[-1]["responseTime"]
-            for i in range(1, len(rows_partitions[largest_partition]) - 1, 1):
+            for i in range(1, len(rows_partitions[largest_partition]) - 1):
                 v1 = rows_partitions[largest_partition][i]
                 v2 = rows_partitions[largest_partition][i + 1]
                 if (v2["responseTime"] - v1["responseTime"]) < diff:
@@ -1468,15 +1478,14 @@ def get_avg_fps(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
 def __get_crashed_sessions_ids(project_id, startTimestamp, endTimestamp):
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
-            f"""\
-            SELECT session_id
-            FROM public.sessions
-            WHERE sessions.project_id = %(project_id)s
-                AND 'crash' = ANY (sessions.issue_types)
-                AND sessions.start_ts >= %(startDate)s 
-                AND sessions.start_ts <= %(endDate)s;""",
-            {"project_id": project_id, "startDate": startTimestamp, "endDate": endTimestamp}
+            "\\\x1f            SELECT session_id\x1f            FROM public.sessions\x1f            WHERE sessions.project_id = %(project_id)s\x1f                AND 'crash' = ANY (sessions.issue_types)\x1f                AND sessions.start_ts >= %(startDate)s \x1f                AND sessions.start_ts <= %(endDate)s;",
+            {
+                "project_id": project_id,
+                "startDate": startTimestamp,
+                "endDate": endTimestamp,
+            },
         )
+
         cur.execute(query=query)
         return [r["session_id"] for r in cur.fetchall()]
 
@@ -1542,19 +1551,23 @@ def get_crashes(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
             total = sum(r["total"] for r in browsers)
             for r in browsers:
                 r["percentage"] = r["total"] / (total / 100)
-                versions = []
-                for i in range(len(r["versions"][:3])):
-                    versions.append({r["versions"][i][0]: int(r["versions"][i][1]) / (r["total"] / 100)})
+                versions = [
+                    {
+                        r["versions"][i][0]: int(r["versions"][i][1])
+                        / (r["total"] / 100)
+                    }
+                    for i in range(len(r["versions"][:3]))
+                ]
+
                 r["versions"] = versions
     else:
         rows = []
         browsers = []
-    result = {"chart": __complete_missing_steps(rows=rows, start_time=startTimestamp,
+    return {"chart": __complete_missing_steps(rows=rows, start_time=startTimestamp,
                                                 end_time=endTimestamp,
                                                 density=density,
                                                 neutral={"count": 0}),
               "browsers": browsers}
-    return result
 
 
 def __get_domains_errors_neutral(rows):
@@ -1784,9 +1797,11 @@ def get_sessions_per_browser(project_id, startTimestamp=TimeUTC.now(delta_days=-
                                   "startTimestamp": startTimestamp,
                                   "endTimestamp": endTimestamp, **__get_constraint_values(args)})
     for i, r in enumerate(rows):
-        versions = {}
-        for j in range(len(r["versions"])):
-            versions[r["versions"][j][0]] = int(r["versions"][j][1])
+        versions = {
+            r["versions"][j][0]: int(r["versions"][j][1])
+            for j in range(len(r["versions"]))
+        }
+
         r.pop("versions")
         rows[i] = {**r, **versions}
     return {"count": sum(i["count"] for i in rows), "chart": rows}

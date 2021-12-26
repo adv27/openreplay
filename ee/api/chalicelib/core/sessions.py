@@ -121,7 +121,17 @@ new_line = "\n"
 
 def __get_sql_operator(op):
     op = op.lower()
-    return "=" if op == "is" or op == "on" else "!=" if op == "isnot" else "ILIKE" if op == "contains" else "NOT ILIKE" if op == "notcontains" else "="
+    return (
+        "="
+        if op in ["is", "on"]
+        else "!="
+        if op == "isnot"
+        else "ILIKE"
+        if op == "contains"
+        else "NOT ILIKE"
+        if op == "notcontains"
+        else "="
+    )
 
 
 def __is_negation_operator(op):
@@ -139,13 +149,13 @@ def __get_sql_operator_multiple(op):
 
 def __get_sql_operator_boolean(op):
     op = op.lower()
-    return True if op == "true" else False
+    return op == "true"
 
 
 def __get_sql_value_multiple(values):
     if isinstance(values, tuple):
         return values
-    return tuple([v for v in values])
+    return tuple(list(values))
 
 
 @dev.timed
@@ -500,7 +510,7 @@ def search_by_metadata(tenant_id, user_id, m_key, m_value, project_id=None):
             available_keys.pop(i)
             results[i] = {"total": 0, "sessions": [], "missingMetadata": True}
     project_ids = list(available_keys.keys())
-    if len(project_ids) > 0:
+    if project_ids:
         with pg_client.PostgresClient() as cur:
             sub_queries = []
             for i in project_ids:
@@ -534,7 +544,7 @@ def search_by_metadata(tenant_id, user_id, m_key, m_value, project_id=None):
                                     LIMIT 10
                                 )""",
                             {"id": i, "value": m_value, "userId": user_id}).decode('UTF-8'))
-            if len(sub_queries) > 0:
+            if sub_queries:
                 cur.execute("\nUNION\n".join(sub_queries))
                 rows = cur.fetchall()
                 for i in rows:
@@ -577,12 +587,11 @@ def search_by_issue(user_id, issue, project_id, start_date, end_date):
 
 def get_favorite_sessions(project_id, user_id, include_viewed=False):
     with pg_client.PostgresClient() as cur:
-        query_part = cur.mogrify(f"""\
-            FROM public.sessions AS s 
-                LEFT JOIN public.user_favorite_sessions AS fs ON fs.session_id = s.session_id
-            WHERE fs.user_id = %(userId)s""",
-                                 {"projectId": project_id, "userId": user_id}
-                                 )
+        query_part = cur.mogrify(
+            '\\\x1f            FROM public.sessions AS s \x1f                LEFT JOIN public.user_favorite_sessions AS fs ON fs.session_id = s.session_id\x1f            WHERE fs.user_id = %(userId)s',
+            {"projectId": project_id, "userId": user_id},
+        )
+
 
         extra_query = b""
         if include_viewed:

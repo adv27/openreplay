@@ -14,28 +14,30 @@ def __get_key(project_id, url):
 
 
 def presign_share_urls(project_id, urls):
-    results = []
-    for u in urls:
-        results.append(s3.get_presigned_url_for_sharing(bucket=environ['sourcemaps_bucket'], expires_in=120,
-                                                        key=__get_key(project_id, u),
-                                                        check_exists=True))
-    return results
+    return [
+        s3.get_presigned_url_for_sharing(
+            bucket=environ['sourcemaps_bucket'],
+            expires_in=120,
+            key=__get_key(project_id, u),
+            check_exists=True,
+        )
+        for u in urls
+    ]
 
 
 def presign_upload_urls(project_id, urls):
-    results = []
-    for u in urls:
-        results.append(s3.get_presigned_url_for_upload(bucket=environ['sourcemaps_bucket'],
-                                                       expires_in=1800,
-                                                       key=__get_key(project_id, u)))
-    return results
+    return [
+        s3.get_presigned_url_for_upload(
+            bucket=environ['sourcemaps_bucket'],
+            expires_in=1800,
+            key=__get_key(project_id, u),
+        )
+        for u in urls
+    ]
 
 
 def __format_frame_old(f):
-    if f.get("context") is None:
-        f["context"] = []
-    else:
-        f["context"] = [[f["line"], f["context"]]]
+    f["context"] = [] if f.get("context") is None else [[f["line"], f["context"]]]
     url = f.pop("url")
     f["absPath"] = url
     f["filename"] = urlparse(url).path
@@ -99,8 +101,8 @@ def get_traces_group(project_id, payload):
             payloads[key].append({"resultIndex": i,
                                   "position": {"line": u["lineNo"], "column": u["colNo"]},
                                   "frame": dict(u)})
-    for key in payloads.keys():
-        if payloads[key] is None:
+    for key, value in payloads.items():
+        if value is None:
             continue
         key_results = sourcemaps_parser.get_original_trace(key=key, positions=[o["position"] for o in payloads[key]])
         for i, r in enumerate(key_results):
@@ -146,7 +148,7 @@ def fetch_missed_contexts(frames):
         l = frames[i]["lineNo"] - 1  # starts from 1
         c = frames[i]["colNo"] - 1  # starts from 1
         if len(lines) == 1:
-            print(f"minified asset")
+            print('minified asset')
             l = frames[i]["frame"]["lineNo"] - 1  # starts from 1
             c = frames[i]["frame"]["colNo"] - 1  # starts from 1
         elif l >= len(lines):
@@ -155,7 +157,6 @@ def fetch_missed_contexts(frames):
 
         line = lines[l]
         offset = c - MAX_COLUMN_OFFSET
-        if offset < 0:  # if the line is shirt
-            offset = 0
+        offset = max(offset, 0)
         frames[i]["context"].append([frames[i]["lineNo"], line[offset: c + MAX_COLUMN_OFFSET + 1]])
     return frames

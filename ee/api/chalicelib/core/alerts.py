@@ -42,7 +42,7 @@ SUPPORTED_THRESHOLD = [15, 30, 60, 120, 240, 1440]
 
 def __transform_structure(data):
     if data.get("options") is None:
-        return f"Missing 'options'", None
+        return "Missing 'options'", None
     if data["options"].get("currentPeriod") not in SUPPORTED_THRESHOLD:
         return f"Unsupported currentPeriod, please provide one of these values {SUPPORTED_THRESHOLD}", None
     if data["options"].get("previousPeriod", 15) not in SUPPORTED_THRESHOLD:
@@ -94,10 +94,8 @@ def update(id, changes):
     err, changes = __transform_structure(changes)
     if err is not None:
         return {"errors": [err]}
-    updateq = []
-    for k in changes.keys():
-        updateq.append(f"{helper.key_to_snake_case(k)} = %({k})s")
-    if len(updateq) == 0:
+    updateq = [f"{helper.key_to_snake_case(k)} = %({k})s" for k in changes.keys()]
+    if not updateq:
         return {"errors": ["nothing to update"]}
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(f"""\
@@ -115,9 +113,7 @@ def process_notifications(data):
     full = {}
     for n in data:
         if "message" in n["options"]:
-            webhook_data = {}
-            if "data" in n["options"]:
-                webhook_data = n["options"].pop("data")
+            webhook_data = n["options"].pop("data") if "data" in n["options"] else {}
             for c in n["options"].pop("message"):
                 if c["type"] not in full:
                     full[c["type"]] = []
@@ -130,8 +126,8 @@ def process_notifications(data):
                     full[c["type"]].append({"data": webhook_data, "destination": c["value"]})
     notifications.create(data)
     BATCH_SIZE = 200
-    for t in full.keys():
-        for i in range(0, len(full[t]), BATCH_SIZE):
+    for t, value in full.items():
+        for i in range(0, len(value), BATCH_SIZE):
             helper.async_post(environ['alert_ntf'] % t, {"notifications": full[t][i:i + BATCH_SIZE]})
 
 

@@ -59,7 +59,7 @@ def create_step1(data):
     if len(signed_ups) == 0 and data.get("tenantId") is not None \
             or len(signed_ups) > 0 and data.get("tenantId") not in [t['tenantId'] for t in signed_ups]:
         errors.append("Tenant does not exist")
-    if len(errors) > 0:
+    if errors:
         print("==> error")
         print(errors)
         return {"errors": errors}

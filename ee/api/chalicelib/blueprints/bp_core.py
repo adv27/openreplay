@@ -100,9 +100,13 @@ def events_search(projectId, context):
     q = params.get('q', '')
     if len(q) == 0:
         return {"data": []}
-    result = events.search_pg2(q, params.get('type', ''), project_id=projectId, source=params.get('source'),
-                               key=params.get("key"))
-    return result
+    return events.search_pg2(
+        q,
+        params.get('type', ''),
+        project_id=projectId,
+        source=params.get('source'),
+        key=params.get("key"),
+    )
 
 
 @app.route('/{projectId}/sessions/search2', methods=['POST'])
@@ -142,9 +146,7 @@ def get_session_filters_meta(projectId, context):
            methods=['POST', 'PUT'])
 def integration_notify(projectId, integration, integrationId, source, sourceId, context):
     data = app.current_request.json_body
-    comment = None
-    if "comment" in data:
-        comment = data["comment"]
+    comment = data["comment"] if "comment" in data else None
     if integration == "slack":
         args = {"tenant_id": context["tenantId"],
                 "user": context['email'], "comment": comment, "project_id": projectId,
