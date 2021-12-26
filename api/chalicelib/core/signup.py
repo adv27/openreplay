@@ -64,7 +64,7 @@ def create_step1(data):
             or len(signed_ups) > 0 and data.get("tenantId") not in [t['tenantId'] for t in signed_ups]:
         errors.append("Tenant does not exist")
 
-    if len(errors) > 0:
+    if errors:
         print("==> error")
         print(errors)
         return {"errors": errors}
@@ -111,24 +111,8 @@ def create_step1(data):
                  {update_user if email_exists else insert_user}
                 RETURNING (SELECT api_key FROM t) AS api_key,(SELECT project_id FROM projects LIMIT 1) AS project_id;"""
     else:
-        query = f"""\
-                WITH t AS (
-                    INSERT INTO public.tenants (name, version_number, edition)
-                        VALUES (%(organizationName)s, %(versionNumber)s, 'fos')
-                    RETURNING api_key
-                ),
-                 u AS (
-                     INSERT INTO public.users (email, role, name, data)
-                             VALUES (%(email)s, 'owner', %(fullname)s,%(data)s)
-                             RETURNING user_id,email,role,name
-                 ),
-                 au AS (INSERT
-                     INTO public.basic_authentication (user_id, password, generated_password)
-                         VALUES ((SELECT user_id FROM u), crypt(%(password)s, gen_salt('bf', 12)), FALSE)
-                 )
-                 INSERT INTO public.projects (name, active)
-                 VALUES (%(projectName)s, TRUE)
-                 RETURNING project_id, (SELECT api_key FROM t) AS api_key;"""
+        query = "\\\x1f                WITH t AS (\x1f                    INSERT INTO public.tenants (name, version_number, edition)\x1f                        VALUES (%(organizationName)s, %(versionNumber)s, 'fos')\x1f                    RETURNING api_key\x1f                ),\x1f                 u AS (\x1f                     INSERT INTO public.users (email, role, name, data)\x1f                             VALUES (%(email)s, 'owner', %(fullname)s,%(data)s)\x1f                             RETURNING user_id,email,role,name\x1f                 ),\x1f                 au AS (INSERT\x1f                     INTO public.basic_authentication (user_id, password, generated_password)\x1f                         VALUES ((SELECT user_id FROM u), crypt(%(password)s, gen_salt('bf', 12)), FALSE)\x1f                 )\x1f                 INSERT INTO public.projects (name, active)\x1f                 VALUES (%(projectName)s, TRUE)\x1f                 RETURNING project_id, (SELECT api_key FROM t) AS api_key;"
+
 
     with pg_client.PostgresClient() as cur:
         cur.execute(cur.mogrify(query, params))

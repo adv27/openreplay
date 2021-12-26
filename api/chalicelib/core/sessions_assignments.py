@@ -8,15 +8,15 @@ import json
 
 def __get_saved_data(project_id, session_id, issue_id, tool):
     with pg_client.PostgresClient() as cur:
-        query = cur.mogrify(f"""\
-                    SELECT *
-                    FROM public.assigned_sessions
-                    WHERE  
-                        session_id = %(session_id)s
-                        AND issue_id = %(issue_id)s
-                        AND provider = %(provider)s;\
-    """,
-                            {"session_id": session_id, "issue_id": issue_id, "provider": tool.lower()})
+        query = cur.mogrify(
+            '\\\x1f                    SELECT *\x1f                    FROM public.assigned_sessions\x1f                    WHERE  \x1f                        session_id = %(session_id)s\x1f                        AND issue_id = %(issue_id)s\x1f                        AND provider = %(provider)s;\\\x1f    ',
+            {
+                "session_id": session_id,
+                "issue_id": issue_id,
+                "provider": tool.lower(),
+            },
+        )
+
         cur.execute(
             query
         )
@@ -31,7 +31,7 @@ def create_new_assignment(tenant_id, project_id, session_id, creator_id, assigne
     i = integration.get()
 
     if i is None:
-        return {"errors": [f"integration not found"]}
+        return {"errors": ['integration not found']}
     link = env["SITE_URL"] + f"/{project_id}/session/{session_id}"
     description += f"\n> {link}"
     try:
@@ -90,12 +90,21 @@ def get_by_session(tenant_id, user_id, project_id, session_id):
         return []
     extra_query = ["session_id = %(session_id)s", "provider IN %(providers)s"]
     with pg_client.PostgresClient() as cur:
-        query = cur.mogrify(f"""\
+        query = cur.mogrify(
+            f"""\
                 SELECT *
                 FROM public.assigned_sessions
                 WHERE {" AND ".join(extra_query)};""",
-                            {"session_id": session_id,
-                             "providers": tuple([k for k in available_integrations if available_integrations[k]])})
+            {
+                "session_id": session_id,
+                "providers": tuple(
+                    k
+                    for k in available_integrations
+                    if available_integrations[k]
+                ),
+            },
+        )
+
         cur.execute(
             query
         )
@@ -108,7 +117,7 @@ def get_by_session(tenant_id, user_id, project_id, session_id):
         issues[i["provider"]].append({"integrationProjectId": i["provider_data"]["integrationProjectId"],
                                       "id": i["issue_id"]})
     results = []
-    for tool in issues.keys():
+    for tool in issues:
         error, integration = integrations_manager.get_integration(tool=tool, tenant_id=tenant_id, user_id=user_id)
         if error is not None:
             return error
@@ -149,7 +158,7 @@ def comment(tenant_id, user_id, project_id, session_id, assignment_id, message):
     i = integration.get()
 
     if i is None:
-        return {"errors": [f"integration not found"]}
+        return {"errors": ['integration not found']}
     l = __get_saved_data(project_id, session_id, assignment_id, tool=integration.provider)
 
     return integration.issue_handler.comment(integration_project_id=l["providerData"]["integrationProjectId"],

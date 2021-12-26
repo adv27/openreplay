@@ -216,10 +216,7 @@ def cron():
                 i["sessions_count"] = f'{i["sessions_count"]:,}'
             keep_types = [i["type"] for i in issues_breakdown_list]
             for i in issues_breakdown_by_day:
-                keep = []
-                for j in i["partition"]:
-                    if j["type"] in keep_types:
-                        keep.append(j)
+                keep = [j for j in i["partition"] if j["type"] in keep_types]
                 i["partition"] = keep
             helper.async_post(environ['email_funnel'] % "weekly_report2",
                               {"email": p.pop("emails"),

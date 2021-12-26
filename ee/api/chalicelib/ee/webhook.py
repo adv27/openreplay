@@ -155,31 +155,33 @@ def trigger_batch(data_list):
 
 
 def __trigger(hook, data):
-    if hook["type"] == 'webhook':
-        headers = {}
-        if hook["authHeader"] is not None and len(hook["authHeader"]) > 0:
-            headers = {"Authorization": hook["authHeader"]}
+    if hook["type"] != 'webhook':
+        return
 
-        # body = {
-        #     "webhookId": hook["id"],
-        #     "createdAt": TimeUTC.now(),
-        #     "event": event,
-        #     "data": data
-        # }
+    headers = {}
+    if hook["authHeader"] is not None and len(hook["authHeader"]) > 0:
+        headers = {"Authorization": hook["authHeader"]}
 
-        r = requests.post(url=hook["endpoint"], json=data, headers=headers)
-        if r.status_code != 200:
-            print("=======> webhook: something went wrong")
-            print(r)
-            print(r.status_code)
-            print(r.text)
-            return
-        response = None
+    # body = {
+    #     "webhookId": hook["id"],
+    #     "createdAt": TimeUTC.now(),
+    #     "event": event,
+    #     "data": data
+    # }
+
+    r = requests.post(url=hook["endpoint"], json=data, headers=headers)
+    if r.status_code != 200:
+        print("=======> webhook: something went wrong")
+        print(r)
+        print(r.status_code)
+        print(r.text)
+        return
+    response = None
+    try:
+        response = r.json()
+    except:
         try:
-            response = r.json()
+            response = r.text
         except:
-            try:
-                response = r.text
-            except:
-                print("no response found")
-        return response
+            print("no response found")
+    return response

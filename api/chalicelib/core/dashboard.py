@@ -16,10 +16,7 @@ def __quantiles(a, q, interpolation='higher'):
     else:
         ind = q * (len(arr) - 1)
     if interpolation == 'higher':
-        if isinstance(q, list):
-            ind = [math.ceil(i) for i in ind]
-        else:
-            ind = math.ceil(ind)
+        ind = [math.ceil(i) for i in ind] if isinstance(q, list) else math.ceil(ind)
     if isinstance(q, list):
         return [arr[i] for i in ind]
     else:
@@ -54,10 +51,10 @@ def __merge_charts(list1, list2, time_key="timestamp"):
 
 
 def __get_constraint_values(data):
-    params = {}
-    for i, f in enumerate(data.get("filters", [])):
-        params[f"{f['key']}_{i}"] = f["value"]
-    return params
+    return {
+        f"{f['key']}_{i}": f["value"]
+        for i, f in enumerate(data.get("filters", []))
+    }
 
 
 METADATA_FIELDS = {"userId": "user_id",
@@ -84,7 +81,7 @@ def __get_meta_constraint(project_id, data):
     meta_keys = {m["key"]: m["index"] for m in meta_keys}
 
     for i, f in enumerate(data.get("filters", [])):
-        if f["key"] in meta_keys.keys():
+        if f["key"] in meta_keys:
             key = f"sessions.metadata_{meta_keys[f['key']]})"
             if f["value"] in ["*", ""]:
                 constraints.append(f"{key} IS NOT NULL")
@@ -148,10 +145,7 @@ def get_processed_sessions(project_id, startTimestamp=TimeUTC.now(delta_days=-1)
                   "endTimestamp": endTimestamp, **__get_constraint_values(args)}
         cur.execute(cur.mogrify(pg_query, params))
         rows = cur.fetchall()
-        results = {
-            "count": sum([r["count"] for r in rows]),
-            "chart": rows
-        }
+        results = {"count": sum(r["count"] for r in rows), "chart": rows}
 
         diff = endTimestamp - startTimestamp
         endTimestamp = startTimestamp
@@ -202,11 +196,15 @@ def get_errors(project_id, startTimestamp=TimeUTC.now(delta_days=-1), endTimesta
         cur.execute(cur.mogrify(pg_query, params))
         rows = cur.fetchall()
         results = {
-            "count": 0 if len(rows) == 0 else __count_distinct_errors(cur, project_id, startTimestamp, endTimestamp,
-                                                                      pg_sub_query),
-            "impactedSessions": sum([r["count"] for r in rows]),
-            "chart": rows
+            "count": 0
+            if len(rows) == 0
+            else __count_distinct_errors(
+                cur, project_id, startTimestamp, endTimestamp, pg_sub_query
+            ),
+            "impactedSessions": sum(r["count"] for r in rows),
+            "chart": rows,
         }
+
 
         diff = endTimestamp - startTimestamp
         endTimestamp = startTimestamp
@@ -312,8 +310,7 @@ def __get_page_metrics(cur, project_id, startTimestamp, endTimestamp, **args):
     params = {"project_id": project_id, "startTimestamp": startTimestamp, "endTimestamp": endTimestamp,
               **__get_constraint_values(args)}
     cur.execute(cur.mogrify(pg_query, params))
-    rows = cur.fetchall()
-    return rows
+    return cur.fetchall()
 
 
 @dev.timed
@@ -396,8 +393,7 @@ def __get_user_activity(cur, project_id, startTimestamp, endTimestamp, **args):
               **__get_constraint_values(args)}
 
     cur.execute(cur.mogrify(pg_query, params))
-    row = cur.fetchone()
-    return row
+    return cur.fetchone()
 
 
 @dev.timed
@@ -669,10 +665,9 @@ def search(text, resource_type, project_id, performance=False, pages_only=False,
         if key and len(key) > 0 and key in {**METADATA_FIELDS, **SESSIONS_META_FIELDS}.keys():
             if key in METADATA_FIELDS.keys():
                 column = METADATA_FIELDS[key]
-                pg_sub_query.append(f"{METADATA_FIELDS[key]} ILIKE %(value)s")
             else:
                 column = SESSIONS_META_FIELDS[key]
-                pg_sub_query.append(f"{SESSIONS_META_FIELDS[key]} ILIKE %(value)s")
+            pg_sub_query.append(f'{column} ILIKE %(value)s')
             with pg_client.PostgresClient() as cur:
                 pg_query = f"""SELECT  DISTINCT {column} AS value,
                                           %(key)s AS key
@@ -685,14 +680,16 @@ def search(text, resource_type, project_id, performance=False, pages_only=False,
                 rows = cur.fetchall()
         else:
             with pg_client.PostgresClient() as cur:
-                pg_query = []
-                for k in METADATA_FIELDS.keys():
-                    pg_query.append(f"""(SELECT DISTINCT sessions.{METADATA_FIELDS[k]} AS value,
+                pg_query = [
+                    f"""(SELECT DISTINCT sessions.{METADATA_FIELDS[k]} AS value,
                                           '{k}' AS key
                                       FROM public.sessions
                                       WHERE {" AND ".join(pg_sub_query)} 
                                             AND {METADATA_FIELDS[k]} ILIKE %(value)s 
-                                      LIMIT 10)""")
+                                      LIMIT 10)"""
+                    for k in METADATA_FIELDS.keys()
+                ]
+
                 for k in SESSIONS_META_FIELDS.keys():
                     if k in ["platform", "country"]:
                         continue
@@ -836,8 +833,8 @@ def get_resources_loading_time(project_id, startTimestamp=TimeUTC.now(delta_days
         pg_sub_query.append(f"resources.type = '{__get_resource_db_type_from_type(type)}'")
         pg_sub_query_chart.append(f"resources.type = '{__get_resource_db_type_from_type(type)}'")
     if url is not None:
-        pg_sub_query.append(f"resources.url = %(value)s")
-        pg_sub_query_chart.append(f"resources.url = %(value)s")
+        pg_sub_query.append('resources.url = %(value)s')
+        pg_sub_query_chart.append('resources.url = %(value)s')
 
     with pg_client.PostgresClient() as cur:
         pg_query = f"""SELECT generated_timestamp AS timestamp,
@@ -874,8 +871,8 @@ def get_pages_dom_build_time(project_id, startTimestamp=TimeUTC.now(delta_days=-
     pg_sub_query_chart = __get_constraints(project_id=project_id, time_constraint=True,
                                            chart=True, data=args)
     if url is not None:
-        pg_sub_query.append(f"pages.path = %(value)s")
-        pg_sub_query_chart.append(f"pages.path = %(value)s")
+        pg_sub_query.append('pages.path = %(value)s')
+        pg_sub_query_chart.append('pages.path = %(value)s')
     pg_sub_query.append("pages.dom_building_time>0")
     pg_sub_query_chart.append("pages.dom_building_time>0")
 
@@ -1032,7 +1029,7 @@ def get_pages_response_time(project_id, startTimestamp=TimeUTC.now(delta_days=-1
     pg_sub_query_chart.append("pages.response_time>0")
 
     if url is not None:
-        pg_sub_query_chart.append(f"url = %(value)s")
+        pg_sub_query_chart.append('url = %(value)s')
     with pg_client.PostgresClient() as cur:
         pg_query = f"""SELECT generated_timestamp AS timestamp,
                                 COALESCE(AVG(pages.response_time),0) AS avg
@@ -1093,7 +1090,7 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
                                            "endTimestamp": endTimestamp, **__get_constraint_values(args)}))
         response_times = cur.fetchall()
         response_times = [i["value"] for i in response_times]
-        if len(response_times) > 0:
+        if response_times:
             quantiles = __quantiles(a=response_times,
                                     q=[i / 100 for i in quantiles_keys],
                                     interpolation='higher')
@@ -1124,9 +1121,7 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
             rows = rows[:extreme_values_first_index]
 
         # ------- Merge points to reduce chart length till density
-        if density < len(quantiles_keys):
-            density = len(quantiles_keys)
-
+        density = max(density, len(quantiles_keys))
         while len(rows) > density:
             true_length = len(rows)
             rows_partitions = []
@@ -1134,11 +1129,10 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
             for p in result["percentiles"]:
                 rows_partitions.append([])
                 for r in rows[offset:]:
-                    if r["responseTime"] < p["responseTime"]:
-                        rows_partitions[-1].append(r)
-                        offset += 1
-                    else:
+                    if r["responseTime"] >= p["responseTime"]:
                         break
+                    rows_partitions[-1].append(r)
+                    offset += 1
             rows_partitions.append(rows[offset:])
 
             largest_partition = 0
@@ -1150,7 +1144,7 @@ def get_pages_response_time_distribution(project_id, startTimestamp=TimeUTC.now(
                 break
             # computing lowest merge diff
             diff = rows[-1]["responseTime"]
-            for i in range(1, len(rows_partitions[largest_partition]) - 1, 1):
+            for i in range(1, len(rows_partitions[largest_partition]) - 1):
                 v1 = rows_partitions[largest_partition][i]
                 v2 = rows_partitions[largest_partition][i + 1]
                 if (v2["responseTime"] - v1["responseTime"]) < diff:
@@ -1459,9 +1453,11 @@ def get_crashes(project_id, startTimestamp=TimeUTC.now(delta_days=-1),
         total = sum(r["total"] for r in browsers)
         for r in browsers:
             r["percentage"] = r["total"] / (total / 100)
-            versions = []
-            for v in r["versions"][:3]:
-                versions.append({v["version"]: v["count"] / (r["total"] / 100)})
+            versions = [
+                {v["version"]: v["count"] / (r["total"] / 100)}
+                for v in r["versions"][:3]
+            ]
+
             r["versions"] = versions
 
     return {"chart": rows, "browsers": browsers}

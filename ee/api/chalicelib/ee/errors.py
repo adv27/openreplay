@@ -255,23 +255,14 @@ def get_details(project_id, error_id, user_id, **data):
     row["tags"] = __process_tags(row)
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
-            f"""SELECT error_id, status, session_id, start_ts, 
-                        parent_error_id,session_id, user_anonymous_id,
-                        user_id, user_uuid, user_browser, user_browser_version, 
-                        user_os, user_os_version, user_device, payload,
-                                    COALESCE((SELECT TRUE
-                                     FROM public.user_favorite_errors AS fe
-                                     WHERE pe.error_id = fe.error_id
-                                       AND fe.user_id = %(user_id)s), FALSE) AS favorite,
-                                       True AS viewed
-                                FROM public.errors AS pe
-                                         INNER JOIN events.errors AS ee USING (error_id)
-                                         INNER JOIN public.sessions USING (session_id)
-                                WHERE pe.project_id = %(project_id)s
-                                  AND error_id = %(error_id)s
-                                ORDER BY start_ts DESC
-                                LIMIT 1;""",
-            {"project_id": project_id, "error_id": error_id, "user_id": user_id})
+            'SELECT error_id, status, session_id, start_ts, \x1f                        parent_error_id,session_id, user_anonymous_id,\x1f                        user_id, user_uuid, user_browser, user_browser_version, \x1f                        user_os, user_os_version, user_device, payload,\x1f                                    COALESCE((SELECT TRUE\x1f                                     FROM public.user_favorite_errors AS fe\x1f                                     WHERE pe.error_id = fe.error_id\x1f                                       AND fe.user_id = %(user_id)s), FALSE) AS favorite,\x1f                                       True AS viewed\x1f                                FROM public.errors AS pe\x1f                                         INNER JOIN events.errors AS ee USING (error_id)\x1f                                         INNER JOIN public.sessions USING (session_id)\x1f                                WHERE pe.project_id = %(project_id)s\x1f                                  AND error_id = %(error_id)s\x1f                                ORDER BY start_ts DESC\x1f                                LIMIT 1;',
+            {
+                "project_id": project_id,
+                "error_id": error_id,
+                "user_id": user_id,
+            },
+        )
+
         cur.execute(query=query)
         status = cur.fetchone()
 
@@ -428,8 +419,9 @@ def __get_basic_constraints(platform=None, time_constraint=True, startTime_arg_n
 
 
 def __get_step_size(startTimestamp, endTimestamp, density):
-    step_size = (int(endTimestamp) // 1000 - int(startTimestamp) // 1000) // (int(density) - 1)
-    return step_size
+    return (int(endTimestamp) // 1000 - int(startTimestamp) // 1000) // (
+        int(density) - 1
+    )
 
 
 def __get_sort_key(key):
@@ -471,10 +463,7 @@ def search(data, project_id, user_id, flows=False, status="ALL", favorite_only=F
         sort = __get_sort_key('datetime')
         if data.get("sort") is not None:
             sort = __get_sort_key(data["sort"])
-        order = "DESC"
-        if data.get("order") is not None:
-            order = data["order"]
-
+        order = data["order"] if data.get("order") is not None else "DESC"
         params = {
             "startDate": data['startDate'],
             "endDate": data['endDate'],
@@ -536,8 +525,13 @@ def search(data, project_id, user_id, flows=False, status="ALL", favorite_only=F
                                                AND ve.user_id = %(user_id)s LIMIT 1), FALSE) AS viewed
                             FROM public.errors 
                             WHERE project_id = %(project_id)s AND error_id IN %(error_ids)s;""",
-                        {"project_id": project_id, "error_ids": tuple([r["error_id"] for r in rows]),
-                         "user_id": user_id})
+                        {
+                            "project_id": project_id,
+                            "error_ids": tuple(r["error_id"] for r in rows),
+                            "user_id": user_id,
+                        },
+                    )
+
                     cur.execute(query=query)
                     statuses = cur.fetchall()
     statuses = {
@@ -688,8 +682,10 @@ def change_state(project_id, user_id, error_id, action):
 
     params = {
         "userId": user_id,
-        "error_ids": tuple([e["errorId"] for e in errors]),
-        "status": status}
+        "error_ids": tuple(e["errorId"] for e in errors),
+        "status": status,
+    }
+
     with pg_client.PostgresClient() as cur:
         query = cur.mogrify(
             """UPDATE public.errors

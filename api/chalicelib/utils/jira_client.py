@@ -30,11 +30,7 @@ class JiraManager:
                 return self.get_projects()
             print(f"=>Error {e.text}")
             raise e
-        projects_dict_list = []
-        for project in projects:
-            projects_dict_list.append(self.__parser_project_info(project))
-
-        return projects_dict_list
+        return [self.__parser_project_info(project) for project in projects]
 
     def get_project(self):
         try:
@@ -49,9 +45,12 @@ class JiraManager:
         return self.__parser_project_info(project)
 
     def get_issues(self, sql: str, offset: int = 0):
-        jql = "project = " + self._config['JIRA_PROJECT_ID'] \
-              + ((" AND " + sql) if sql is not None and len(sql) > 0 else "") \
-              + " ORDER BY createdDate DESC"
+        jql = (
+            "project = "
+            + self._config['JIRA_PROJECT_ID']
+            + (" AND " + sql if sql is not None and sql != '' else "")
+        ) + " ORDER BY createdDate DESC"
+
 
         try:
             issues = self._jira.search_issues(jql, maxResults=1000, startAt=offset, fields=fields)
@@ -63,13 +62,11 @@ class JiraManager:
             print(f"=>Error {e.text}")
             raise e
 
-        issue_dict_list = []
-        for issue in issues:
-            # print(issue.raw)
-            issue_dict_list.append(self.__parser_issue_info(issue, include_comments=False))
-
         # return {"total": issues.total, "issues": issue_dict_list}
-        return issue_dict_list
+        return [
+            self.__parser_issue_info(issue, include_comments=False)
+            for issue in issues
+        ]
 
     def get_issue(self, issue_id: str):
         try:
@@ -192,10 +189,7 @@ class JiraManager:
     def get_comments(self, issueKey):
         try:
             comments = self._jira.comments(issueKey)
-            results = []
-            for c in comments:
-                results.append(self.__parser_comment_info(c.raw))
-            return results
+            return [self.__parser_comment_info(c.raw) for c in comments]
         except JIRAError as e:
             self.retries -= 1
             if (e.status_code // 100) == 4 and self.retries > 0:
@@ -205,8 +199,7 @@ class JiraManager:
             raise e
 
     def get_meta(self):
-        meta = {}
-        meta['issueTypes'] = self.get_issue_types()
+        meta = {'issueTypes': self.get_issue_types()}
         meta['users'] = self.get_assignable_users()
         return meta
 
@@ -220,16 +213,12 @@ class JiraManager:
                 return self.get_assignable_users()
             print(f"=>Error {e.text}")
             raise e
-        users_dict = []
-        for user in users:
-            users_dict.append({
+        return [{
                 'name': user.displayName,
                 'email': user.emailAddress,
                 'id': user.accountId,
                 'avatarUrls': user.raw["avatarUrls"]
-            })
-
-        return users_dict
+            } for user in users]
 
     def get_issue_types(self):
         try:
@@ -241,16 +230,16 @@ class JiraManager:
                 return self.get_issue_types()
             print(f"=>Error {e.text}")
             raise e
-        types_dict = []
-        for type in types:
-            if not type.subtask and not type.name.lower() == "epic":
-                types_dict.append({
-                    'id': type.id,
-                    'name': type.name,
-                    'iconUrl': type.iconUrl,
-                    'description': type.description
-                })
-        return types_dict
+        return [
+            {
+                'id': type.id,
+                'name': type.name,
+                'iconUrl': type.iconUrl,
+                'description': type.description,
+            }
+            for type in types
+            if not type.subtask and type.name.lower() != "epic"
+        ]
 
     def __parser_comment_info(self, comment):
         if not isinstance(comment, dict):
@@ -272,15 +261,11 @@ class JiraManager:
 
     @staticmethod
     def __get_closed_status(status):
-        return status.lower() == "done" or status.lower() == "close" or status.lower() == "closed" or status.lower() == "finish" or status.lower() == "finished"
+        return status.lower() in ["done", "close", "closed", "finish", "finished"]
 
     def __parser_issue_info(self, issue, include_comments=True):
         results_dict = {}
-        if not isinstance(issue, dict):
-            raw_info = issue.raw
-        else:
-            raw_info = issue
-
+        raw_info = issue.raw if not isinstance(issue, dict) else issue
         fields = raw_info['fields']
         results_dict["id"] = raw_info["id"]
         results_dict["key"] = raw_info["key"]
@@ -301,9 +286,10 @@ class JiraManager:
 
         if "comment" in fields:
             if include_comments:
-                comments_dict = []
-                for comment in fields["comment"]["comments"]:
-                    comments_dict.append(self.__parser_comment_info(comment))
+                comments_dict = [
+                    self.__parser_comment_info(comment)
+                    for comment in fields["comment"]["comments"]
+                ]
 
                 results_dict['comments'] = comments_dict
             results_dict['commentsCount'] = fields["comment"]["total"]

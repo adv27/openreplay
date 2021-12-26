@@ -112,7 +112,7 @@ class Slack:
     @classmethod
     def has_slack(cls, tenant_id):
         integration = cls.__get(tenant_id=tenant_id)
-        return not (integration is None or len(integration) == 0)
+        return integration is not None and len(integration) != 0
 
     @classmethod
     def __get(cls, tenant_id, integration_id=None):

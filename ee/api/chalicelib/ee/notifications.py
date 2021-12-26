@@ -33,7 +33,7 @@ def view_notification(user_id, notification_ids=[], tenant_id=None, startTimesta
         startTimestamp = 0
     notification_ids = [(user_id, id) for id in notification_ids]
     with pg_client.PostgresClient() as cur:
-        if len(notification_ids) > 0:
+        if notification_ids:
             cur.executemany(
                 "INSERT INTO public.user_viewed_notifications(user_id, notification_id) VALUES (%s,%s) ON CONFLICT DO NOTHING;",
                 notification_ids)

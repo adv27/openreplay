@@ -9,9 +9,11 @@ def __update(tenant_id, project_id, changes):
     if len(changes.keys()) == 0:
         return None
 
-    sub_query = []
-    for key in changes.keys():
-        sub_query.append(f"{helper.key_to_snake_case(key)} = %({key})s")
+    sub_query = [
+        f"{helper.key_to_snake_case(key)} = %({key})s"
+        for key in changes.keys()
+    ]
+
     with pg_client.PostgresClient() as cur:
         cur.execute(
             cur.mogrify(f"""\
@@ -30,12 +32,12 @@ def __update(tenant_id, project_id, changes):
 def __create(tenant_id, name):
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify(f"""\
-                    INSERT INTO public.projects (name, active)
-                    VALUES (%(name)s,TRUE)
-                    RETURNING project_id;""",
-                        {"name": name})
+            cur.mogrify(
+                '\\\x1f                    INSERT INTO public.projects (name, active)\x1f                    VALUES (%(name)s,TRUE)\x1f                    RETURNING project_id;',
+                {"name": name},
+            )
         )
+
         project_id = cur.fetchone()["project_id"]
     return get_project(tenant_id=tenant_id, project_id=project_id, include_gdpr=True)
 

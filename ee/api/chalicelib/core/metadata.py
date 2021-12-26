@@ -23,11 +23,11 @@ def get(project_id):
             LIMIT 1;""", {"project_id": project_id})
         )
         metas = cur.fetchone()
-        results = []
-        for i, k in enumerate(metas.keys()):
-            if metas[k] is not None:
-                results.append({"key": metas[k], "index": i + 1})
-        return results
+        return [
+            {"key": metas[k], "index": i + 1}
+            for i, k in enumerate(metas.keys())
+            if metas[k] is not None
+        ]
 
 
 regex = re.compile(r'^[a-z0-9_-]+$', re.IGNORECASE)
@@ -113,9 +113,10 @@ def add(tenant_id, project_id, new_name):
 
 def search(tenant_id, project_id, key, value):
     value = value + "%"
-    s_query = []
-    for f in _get_column_names():
-        s_query.append(f"CASE WHEN {f}=%(key)s THEN TRUE ELSE FALSE END AS {f}")
+    s_query = [
+        f"CASE WHEN {f}=%(key)s THEN TRUE ELSE FALSE END AS {f}"
+        for f in _get_column_names()
+    ]
 
     with pg_client.PostgresClient() as cur:
         cur.execute(
@@ -174,9 +175,7 @@ def get_by_session_id(project_id, session_id):
         session_metas = cur.fetchall()
         results = []
         for m in session_metas:
-            r = {}
-            for k in m.keys():
-                r[keys[k]] = m[k]
+            r = {keys[k]: m[k] for k in m.keys()}
             results.append(r)
         return results
 
@@ -199,10 +198,7 @@ def get_keys_by_projects(project_ids):
         results = {}
         for r in rows:
             project_id = r.pop("project_id")
-            results[project_id] = {}
-            for m in r:
-                if r[m] is not None:
-                    results[project_id][m] = r[m]
+            results[project_id] = {m: r[m] for m in r if r[m] is not None}
         return results
 
 
@@ -221,7 +217,7 @@ def add_edit_delete(tenant_id, project_id, new_metas):
 
     if len(new_keys) > 20:
         return {"errors": ["you cannot add more than 20 key"]}
-    for k in new_metas.keys():
+    for k in new_metas:
         if re.match(regex, new_metas[k]["key"]) is None:
             return {"errors": [f"invalid key {k}"]}
     for k in add_metas:
@@ -240,7 +236,7 @@ def add_edit_delete(tenant_id, project_id, new_metas):
         for k in add_metas:
             add(tenant_id=tenant_id, project_id=project_id, new_name=k)
 
-        for k in new_metas.keys():
+        for k in new_metas:
             if new_metas[k]["key"].lower() != old_metas[k]["key"]:
                 edit(tenant_id=tenant_id, project_id=project_id, index=k, new_name=new_metas[k]["key"])
 
@@ -253,10 +249,7 @@ def get_remaining_metadata_with_count(tenant_id):
     results = []
     for p in all_projects:
         used_metas = get(p["projectId"])
-        if MAX_INDEXES < 0:
-            remaining = -1
-        else:
-            remaining = MAX_INDEXES - len(used_metas)
+        remaining = -1 if MAX_INDEXES < 0 else MAX_INDEXES - len(used_metas)
         results.append({**p, "limit": MAX_INDEXES, "remaining": remaining, "count": len(used_metas)})
 
     return results

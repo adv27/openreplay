@@ -7,16 +7,12 @@ SUPPORTED_TOOLS = [integration_github.PROVIDER, integration_jira_cloud.PROVIDER]
 def get_available_integrations(user_id):
     with pg_client.PostgresClient() as cur:
         cur.execute(
-            cur.mogrify(f"""\
-                    SELECT EXISTS((SELECT 1
-                               FROM public.oauth_authentication
-                               WHERE user_id = %(user_id)s
-                                 AND provider = 'github')) AS github,
-                           EXISTS((SELECT 1
-                                   FROM public.jira_cloud
-                                   WHERE user_id = %(user_id)s))       AS jira;""",
-                        {"user_id": user_id})
+            cur.mogrify(
+                "\\\x1f                    SELECT EXISTS((SELECT 1\x1f                               FROM public.oauth_authentication\x1f                               WHERE user_id = %(user_id)s\x1f                                 AND provider = 'github')) AS github,\x1f                           EXISTS((SELECT 1\x1f                                   FROM public.jira_cloud\x1f                                   WHERE user_id = %(user_id)s))       AS jira;",
+                {"user_id": user_id},
+            )
         )
+
         current_integrations = cur.fetchone()
     return dict(current_integrations)
 
@@ -31,7 +27,7 @@ def get_integration(tenant_id, user_id, tool=None):
     if tool is None:
         tool = __get_default_integration(user_id=user_id)
     if tool is None:
-        return {"errors": [f"no issue tracking tool found"]}, None
+        return {"errors": ['no issue tracking tool found']}, None
     tool = tool.upper()
     if tool not in SUPPORTED_TOOLS:
         return {"errors": [f"issue tracking tool not supported yet, available: {SUPPORTED_TOOLS}"]}, None

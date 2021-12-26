@@ -313,20 +313,12 @@ if DATABASE == 'bigquery':
     dtypes_sessions['urls'] = 'string'
     dtypes_sessions['issues'] = 'string'
 
-detailed_events_col = []
-for col in DetailedEvent.__dict__:
-    if not col.startswith('_'):
-        detailed_events_col.append(col)
+detailed_events_col = [
+    col for col in DetailedEvent.__dict__ if not col.startswith('_')
+]
 
-events_col = []
-for col in Event.__dict__:
-    if not col.startswith('_'):
-        events_col.append(col)
-
-sessions_col = []
-for col in Session.__dict__:
-    if not col.startswith('_'):
-        sessions_col.append(col)
+events_col = [col for col in Event.__dict__ if not col.startswith('_')]
+sessions_col = [col for col in Session.__dict__ if not col.startswith('_')]
 
 
 def get_df_from_batch(batch, level):

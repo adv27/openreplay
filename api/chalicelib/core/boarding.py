@@ -11,7 +11,7 @@ def get_state(tenant_id):
         recorded = False
         meta = False
 
-        if len(pids) > 0:
+        if pids:
             cur.execute(
                 cur.mogrify("""\
                            SELECT
@@ -63,7 +63,7 @@ def get_state_installing(tenant_id):
     with pg_client.PostgresClient() as cur:
         recorded = False
 
-        if len(pids) > 0:
+        if pids:
             cur.execute(
                 cur.mogrify("""\
                            SELECT

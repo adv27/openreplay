@@ -11,9 +11,11 @@ _overrides.chalice_app(app)
 
 @app.route('/{projectId}/dashboard/metadata', methods=['GET'])
 def get_metadata_map(projectId, context):
-    metamap = []
-    for m in metadata.get(project_id=projectId):
-        metamap.append({"name": m["key"], "key": f"metadata{m['index']}"})
+    metamap = [
+        {"name": m["key"], "key": f"metadata{m['index']}"}
+        for m in metadata.get(project_id=projectId)
+    ]
+
     return {"data": metamap}
 
 

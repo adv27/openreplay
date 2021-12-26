@@ -103,9 +103,11 @@ def weekly_report2(recipients, data):
             {i["day_short"]}
           </td>"""
         if len(i["partition"]) > 0:
-            sup_partition = ""
-            for j in i["partition"]:
-                sup_partition += f'<tr style="font-weight:300"><td height="{j["value"]}" title="{j["count"]} {j["type"]}" style="font-size:0;padding:0;border-right:none;font-weight:300;margin:0;line-height:0;background-color:{color_breakdown[j["type"]]};text-align:left"></td></tr>'
+            sup_partition = "".join(
+                f'<tr style="font-weight:300"><td height="{j["value"]}" title="{j["count"]} {j["type"]}" style="font-size:0;padding:0;border-right:none;font-weight:300;margin:0;line-height:0;background-color:{color_breakdown[j["type"]]};text-align:left"></td></tr>'
+                for j in i["partition"]
+            )
+
         else:
             sup_partition = '<tr style="font-weight:300"><td height="3" style="font-size:0;padding:0;border-right:none;font-weight:300;margin:0;line-height:0;background-color:#999999;text-align:left"></td></tr>'
         data[

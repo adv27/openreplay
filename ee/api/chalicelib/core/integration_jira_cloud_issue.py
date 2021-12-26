@@ -28,11 +28,11 @@ class JIRACloudIntegrationIssue(BaseIntegrationIssue):
             projects_map[i["integrationProjectId"]].append(i["id"])
 
         results = []
-        for integration_project_id in projects_map:
+        for integration_project_id, value in projects_map.items():
             self._client.set_jira_project_id(integration_project_id)
             jql = 'labels = OpenReplay'
             if len(projects_map[integration_project_id]) > 0:
-                jql += f" AND ID IN ({','.join(projects_map[integration_project_id])})"
+                jql += f' AND ID IN ({",".join(value)})'
             issues = self._client.get_issues(jql, offset=0)
             results += issues
         return {"issues": results}

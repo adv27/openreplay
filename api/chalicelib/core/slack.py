@@ -27,6 +27,9 @@ def send_batch(notifications_list):
                                                              "title": n["notification"]["title"],
                                                              "title_link": n["notification"]["buttonUrl"],
                                                              "ts": datetime.now().timestamp()})
-    for batch in webhookId_map.keys():
-        Slack.send_batch(tenant_id=webhookId_map[batch]["tenantId"], webhook_id=batch,
-                         attachments=webhookId_map[batch]["batch"])
+    for batch, value in webhookId_map.items():
+        Slack.send_batch(
+            tenant_id=webhookId_map[batch]["tenantId"],
+            webhook_id=batch,
+            attachments=value["batch"],
+        )

@@ -20,13 +20,11 @@ class GithubIntegrationIssue(BaseIntegrationIssue):
         users = [formatter.user(u) for u in users]
         if current_user not in users:
             users.insert(0, current_user)
-        meta = {
+        return {
             'users': users,
             'issueTypes': [formatter.label(l) for l in
                            self.__client.get(f"/repositories/{repoId}/labels")]
         }
-
-        return meta
 
     def create_new_assignment(self, integration_project_id, title, description, assignee,
                               issue_type):
@@ -57,9 +55,14 @@ class GithubIntegrationIssue(BaseIntegrationIssue):
         return formatter.issue(issue)
 
     def get_by_ids(self, saved_issues):
-        results = []
-        for i in saved_issues:
-            results.append(self.get(integration_project_id=i["integrationProjectId"], assignment_id=i["id"]))
+        results = [
+            self.get(
+                integration_project_id=i["integrationProjectId"],
+                assignment_id=i["id"],
+            )
+            for i in saved_issues
+        ]
+
         return {"issues": results}
 
     def get(self, integration_project_id, assignment_id):

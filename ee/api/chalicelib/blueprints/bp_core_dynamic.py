@@ -172,12 +172,11 @@ def edit_slack_integration(integrationId, context):
     data = app.current_request.json_body
     if data.get("url") and len(data["url"]) > 0:
         old = webhook.get(tenant_id=context["tenantId"], webhook_id=integrationId)
-        if old["endpoint"] != data["url"]:
-            if not Slack.say_hello(data["url"]):
-                return {
-                    "errors": [
-                        "We couldn't send you a test message on your Slack channel. Please verify your webhook url."]
-                }
+        if old["endpoint"] != data["url"] and not Slack.say_hello(data["url"]):
+            return {
+                "errors": [
+                    "We couldn't send you a test message on your Slack channel. Please verify your webhook url."]
+            }
     return {"data": webhook.update(tenant_id=context["tenantId"], webhook_id=integrationId,
                                    changes={"name": data.get("name", ""), "endpoint": data["url"]})}
 
@@ -220,8 +219,12 @@ def errors_get_details_right_column(projectId, errorId, context):
     if params is None:
         params = {}
 
-    data = errors.get_details_chart(project_id=projectId, user_id=context["userId"], error_id=errorId, **params)
-    return data
+    return errors.get_details_chart(
+        project_id=projectId,
+        user_id=context["userId"],
+        error_id=errorId,
+        **params
+    )
 
 
 @app.route('/{projectId}/errors/{errorId}/sourcemaps', methods=['GET'])
